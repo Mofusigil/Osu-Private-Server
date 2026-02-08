@@ -19,3 +19,5 @@ poetry.toml
 .coverage
 logging.yaml
 logs.log
+guweb_deleted/
+simple-guweb/go.sum

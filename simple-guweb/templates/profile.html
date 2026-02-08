@@ -1,0 +1,88 @@
+{{ template "header" . }}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-body text-center">
+                <h3>{{ .User.Name }}</h3>
+                <span class="badge bg-secondary">{{ .User.Country }}</span>
+                <hr>
+                <img src="/avatar/{{ .User.ID }}" class="img-fluid rounded mb-2" alt="Avatar"
+                    style="max-height: 200px;">
+                <p>Joined: {{ .User.CreationTime | formatDate }}</p>
+                <p>Last Seen: {{ .User.LatestActivity | formatDate }}</p>
+
+                {{ if and .LoggedIn (eq .User.ID .CurrentUserID) }}
+                <hr>
+                <form action="/avatar" method="POST" enctype="multipart/form-data">
+                    <div class="mb-2">
+                        <label for="avatar" class="form-label btn btn-sm btn-outline-primary">Change Avatar</label>
+                        <input type="file" id="avatar" name="avatar" accept=".jpg,.jpeg,.png" style="display: none;"
+                            onchange="this.form.submit()">
+                    </div>
+                </form>
+
+                <hr>
+                <button class="btn btn-sm btn-outline-danger" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#changePasswordForm">
+                    Change Password
+                </button>
+                <div class="collapse mt-2" id="changePasswordForm">
+                    <form action="/change-password" method="POST">
+                        <div class="mb-2">
+                            <input type="password" name="old_password" class="form-control form-control-sm mb-1"
+                                placeholder="Current Password" required>
+                            <input type="password" name="new_password" class="form-control form-control-sm"
+                                placeholder="New Password (min 8 chars)" required minlength="8">
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-danger w-100">Update Password</button>
+                    </form>
+                </div>
+                {{ end }}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <ul class="nav nav-tabs mb-3">
+            <li class="nav-item"><a class="nav-link {{ if eq .Mode 0 }}active{{ end }}"
+                    href="/u/{{ .User.ID }}?mode=0">Standard</a></li>
+            <li class="nav-item"><a class="nav-link {{ if eq .Mode 1 }}active{{ end }}"
+                    href="/u/{{ .User.ID }}?mode=1">Taiko</a></li>
+            <li class="nav-item"><a class="nav-link {{ if eq .Mode 2 }}active{{ end }}"
+                    href="/u/{{ .User.ID }}?mode=2">Catch</a></li>
+            <li class="nav-item"><a class="nav-link {{ if eq .Mode 3 }}active{{ end }}"
+                    href="/u/{{ .User.ID }}?mode=3">Mania</a></li>
+        </ul>
+
+        <div class="card mb-3">
+            <div class="card-header">Statistics</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4"><strong>PP:</strong> {{ .Stats.PP }}</div>
+                    <div class="col-md-4"><strong>Accuracy:</strong> {{ printf "%.2f" .Stats.Acc }}%</div>
+                    <div class="col-md-4"><strong>Plays:</strong> {{ .Stats.Plays }}</div>
+                    <div class="col-md-4"><strong>Total Score:</strong> {{ .Stats.TScore }}</div>
+                    <div class="col-md-4"><strong>Ranked Score:</strong> {{ .Stats.RScore }}</div>
+                    <div class="col-md-4"><strong>Max Combo:</strong> {{ .Stats.MaxCombo }}</div>
+                </div>
+            </div>
+        </div>
+
+        <h4>Best Scores</h4>
+        {{ range .Scores }}
+        <div class="card score-card">
+            <div class="card-body">
+                <h5 class="card-title">{{ .Beatmap.Title }} [{{ .Beatmap.Version }}] <span class="badge bg-info">{{
+                        .Grade }}</span></h5>
+                <h6 class="card-subtitle mb-2 text-muted">by {{ .Beatmap.Artist }} (Mapped by {{ .Beatmap.Creator }})
+                </h6>
+                <p class="card-text">
+                    <strong>{{ .PP }}pp</strong> | {{ printf "%.2f" .Acc }}% | x{{ .MaxCombo }} | Mods: {{ .Mods }}
+                </p>
+            </div>
+        </div>
+        {{ else }}
+        <p>No scores found for this mode.</p>
+        {{ end }}
+    </div>
+</div>
+{{ template "footer" . }}

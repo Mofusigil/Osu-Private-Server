@@ -3,8 +3,8 @@ services:
 
   mysql:
     image: mysql:9.4.0
-    # ports:
-    #   - ${DB_PORT}:${DB_PORT}
+    ports:
+      - ${DB_PORT}:${DB_PORT}
     environment:
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASS}
@@ -49,11 +49,24 @@ services:
 
   ## application services
 
+  # Nginx reverse proxy for SSL
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./cert.pem:/etc/nginx/certs/cert.pem:ro
+      - ./key.pem:/etc/nginx/certs/key.pem:ro
+    depends_on:
+      - bancho
+
   bancho:
     # we also have a public image: osuakatsuki/bancho.py:latest
-    image: bancho:latest
-    ports:
-      - ${APP_PORT}:${APP_PORT}
+    image: osuakatsuki/bancho.py:latest
+    expose:
+      - ${APP_PORT}
     depends_on:
       mysql:
         condition: service_healthy
@@ -63,7 +76,7 @@ services:
     init: true
     volumes:
       - .:/srv/root
-      - data:/srv/root/.data
+      - ./.data:/srv/root/.data
     environment:
       - APP_HOST=${APP_HOST}
       - APP_PORT=${APP_PORT}

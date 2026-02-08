@@ -1,0 +1,83 @@
+{{ define "header" }}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Bancho Profile</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .navbar {
+            margin-bottom: 20px;
+        }
+
+        .score-card {
+            margin-bottom: 10px;
+        }
+
+        .grade-S,
+        .grade-SH {
+            color: gold;
+            font-weight: bold;
+        }
+
+        .grade-SS,
+        .grade-SSH {
+            color: cyan;
+            font-weight: bold;
+        }
+
+        .grade-A {
+            color: green;
+        }
+
+        .grade-B {
+            color: blue;
+        }
+
+        .grade-C {
+            color: purple;
+        }
+
+        .grade-D {
+            color: red;
+        }
+
+        .grade-F {
+            color: gray;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Simple Guweb</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="/leaderboard">Leaderboard</a></li>
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                    {{ if .LoggedIn }}
+                    <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
+                    {{ else }}
+                    <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
+                    {{ end }}
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        {{ end }}
+
+        {{ define "footer" }}
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
+{{ end }}
