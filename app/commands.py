@@ -526,6 +526,76 @@ async def _with(ctx: Context) -> str | None:
     )
 
 
+@command(Privileges.UNRESTRICTED, aliases=["star", "stars"], hidden=False)
+async def sr(ctx: Context) -> str | None:
+    """Show Star-Rating-Rebirth SR for mania maps (vs official SR)."""
+    if ctx.recipient is not app.state.sessions.bot:
+        return "This command can only be used in DM with bot."
+
+    if ctx.player.last_np is None or time.time() >= ctx.player.last_np["timeout"]:
+        return "Please /np a map first!"
+
+    bmap: Beatmap = ctx.player.last_np["bmap"]
+    mode_vn = ctx.player.last_np["mode_vn"]
+
+    osu_file_available = await ensure_osu_file_is_available(
+        bmap.id,
+        expected_md5=bmap.md5,
+    )
+    if not osu_file_available:
+        return "Mapfile could not be found; this incident has been reported."
+
+    # Determine mods: user arguments > client status
+    mods = ctx.player.status.mods
+    if ctx.args:
+        # Try to parse mods from arguments (e.g. !sr +DT)
+        mod_input = "".join(ctx.args).upper().replace("+", "")
+        parsed = Mods.from_modstr(mod_input)
+        if parsed != Mods.NOMOD or mod_input in ("NM", "NOMOD"):
+            mods = parsed
+
+    # Ensure DT is set if NC is present (standard behavior)
+    if mods & Mods.NIGHTCORE:
+        mods |= Mods.DOUBLETIME
+
+    # Get official SR using akatsuki_pp_py
+    result = app.usecases.performance.calculate_performances(
+        osu_file_path=str(BEATMAPS_PATH / f"{bmap.id}.osu"),
+        scores=[ScoreParams(mode=mode_vn, mods=mods)],
+    )
+    official_sr = result[0]["difficulty"]["stars"]
+
+    # For mania mode, also calculate Star-Rating-Rebirth SR
+    is_mania = bmap.mode.as_vanilla == 3 if hasattr(bmap.mode, 'as_vanilla') else bmap.mode == 3
+
+    if is_mania:  # mania
+        try:
+            import sys
+            import math
+            srr_path = str(Path.cwd() / "Star-Rating-Rebirth")
+            if srr_path not in sys.path:
+                sys.path.insert(0, srr_path)
+            from algorithm import calculate as srr_calculate
+
+            # Determine simplified mod string for SRR
+            srr_mod_str = "NM"
+            if mods & Mods.DOUBLETIME:
+                srr_mod_str = "DT"
+            elif mods & Mods.HALFTIME:
+                srr_mod_str = "HT"
+
+            rebirth_sr = srr_calculate(str(BEATMAPS_PATH / f"{bmap.id}.osu"), srr_mod_str)
+
+            if math.isnan(rebirth_sr) or math.isinf(rebirth_sr) or rebirth_sr <= 0:
+                return f"📊 {bmap.full_name} +{mods!r}\n⭐ SR: {official_sr:.2f} (Official) (Rebirth failed)"
+
+            return f"📊 {bmap.full_name} +{mods!r}\n⭐ SR: {rebirth_sr:.2f} (Rebirth)"
+        except Exception as e:
+            return f"📊 {bmap.full_name} +{mods!r}\n⭐ SR: {official_sr:.2f} (Official) (Rebirth error: {e})"
+    else:
+        return f"📊 {bmap.full_name} +{mods!r}\n⭐ SR: {official_sr:.2f}"
+
+
 @command(Privileges.UNRESTRICTED, aliases=["req"])
 async def request(ctx: Context) -> str | None:
     """Request a beatmap for nomination."""

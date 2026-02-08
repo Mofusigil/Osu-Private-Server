@@ -69,6 +69,7 @@ type Beatmap struct {
 	Version   string
 	Creator   string
 	Status    int
+	Diff      float64 // Star Rating
 }
 
 // --- DB INIT ---
@@ -324,7 +325,7 @@ func main() {
 		// Get Best Scores
 		scoreRows, err := db.Query(`
 			SELECT s.id, s.score, s.pp, s.acc, s.max_combo, s.mods, s.grade, s.play_time, s.map_md5,
-			m.id, m.set_id, m.artist, m.title, m.version, m.creator, m.status
+			m.id, m.set_id, m.artist, m.title, m.version, m.creator, m.status, m.diff
 			FROM scores s
 			JOIN maps m ON s.map_md5 = m.md5
 			WHERE s.userid = ? AND s.mode = ? AND s.status = 2
@@ -339,7 +340,7 @@ func main() {
 				var playTimeStr string
 				scoreRows.Scan(
 					&s.ID, &s.Score, &s.PP, &s.Acc, &s.MaxCombo, &s.Mods, &s.Grade, &playTimeStr, &s.MapMD5,
-					&m.ID, &m.SetID, &m.Artist, &m.Title, &m.Version, &m.Creator, &m.Status,
+					&m.ID, &m.SetID, &m.Artist, &m.Title, &m.Version, &m.Creator, &m.Status, &m.Diff,
 				)
 				s.Beatmap = &m
 				s.Date = playTimeStr

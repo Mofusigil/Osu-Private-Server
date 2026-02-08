@@ -1,14 +1,33 @@
 from __future__ import annotations
 
 import math
+import sys
 from collections.abc import Iterable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TypedDict
 
 from akatsuki_pp_py import Beatmap
 from akatsuki_pp_py import Calculator
 
 from app.constants.mods import Mods
+
+# 添加 Star-Rating-Rebirth 模块路径
+sys.path.insert(0, str(Path.cwd() / "Star-Rating-Rebirth"))
+try:
+    from algorithm import calculate as srr_calculate
+    SRR_AVAILABLE = True
+except ImportError:
+    SRR_AVAILABLE = False
+
+
+def _get_srr_mod_string(mods: int) -> str:
+    """将 osu! mods 转换为 Star-Rating-Rebirth 需要的 mod 字符串"""
+    if mods & Mods.DOUBLETIME or mods & Mods.NIGHTCORE:
+        return "DT"
+    elif mods & Mods.HALFTIME:
+        return "HT"
+    return "NM"
 
 
 @dataclass
@@ -102,6 +121,25 @@ def calculate_performances(
         result = calculator.performance(calc_bmap)
 
         pp = result.pp
+        stars = result.difficulty.stars
+
+        # 对于 mania 模式 (mode == 3)，使用 Star-Rating-Rebirth 计算 SR
+        # 并按照 SR 比例缩放 PP
+        if score.mode == 3 and SRR_AVAILABLE:
+            try:
+                mod_str = _get_srr_mod_string(score.mods or 0)
+                new_sr = srr_calculate(osu_file_path, mod_str)
+                
+                if not math.isnan(new_sr) and not math.isinf(new_sr) and new_sr > 0:
+                    original_sr = stars
+                    if original_sr > 0:
+                        # 使用 SR 比例的 2.5 次方缩放 PP
+                        sr_ratio = new_sr / original_sr
+                        pp = pp * (sr_ratio ** 2.5)
+                    stars = new_sr
+            except Exception:
+                # 如果 Star-Rating-Rebirth 计算失败，保持原有值
+                pass
 
         if math.isnan(pp) or math.isinf(pp):
             # TODO: report to logserver
@@ -121,7 +159,7 @@ def calculate_performances(
                     "pp_difficulty": result.pp_difficulty,
                 },
                 "difficulty": {
-                    "stars": result.difficulty.stars,
+                    "stars": stars,
                     "aim": result.difficulty.aim,
                     "speed": result.difficulty.speed,
                     "flashlight": result.difficulty.flashlight,

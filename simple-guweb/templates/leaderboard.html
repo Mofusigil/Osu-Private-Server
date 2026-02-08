@@ -1,37 +1,74 @@
 {{ template "header" . }}
-<h2>Leaderboard</h2>
 
-<ul class="nav nav-tabs mb-3">
-    <li class="nav-item"><a class="nav-link {{ if eq .Mode 0 }}active{{ end }}" href="/leaderboard?mode=0">Standard</a>
-    </li>
-    <li class="nav-item"><a class="nav-link {{ if eq .Mode 1 }}active{{ end }}" href="/leaderboard?mode=1">Taiko</a>
-    </li>
-    <li class="nav-item"><a class="nav-link {{ if eq .Mode 2 }}active{{ end }}" href="/leaderboard?mode=2">Catch</a>
-    </li>
-    <li class="nav-item"><a class="nav-link {{ if eq .Mode 3 }}active{{ end }}" href="/leaderboard?mode=3">Mania</a>
-    </li>
-</ul>
+<div class="max-w-6xl mx-auto px-4 py-10">
+    <div class="flex flex-col md:flex-row justify-between items-center mb-8">
+        <h2 class="text-3xl font-bold text-white mb-4 md:mb-0">Leaderboard</h2>
 
-<table class="table table-striped table-hover">
-    <thead>
-        <tr>
-            <th>Rank</th>
-            <th>Name</th>
-            <th>PP</th>
-            <th>Accuracy</th>
-            <th>Plays</th>
-        </tr>
-    </thead>
-    <tbody>
-        {{ range .Users }}
-        <tr onclick="window.location='/u/{{ .ID }}?mode={{ $.Mode }}'" style="cursor: pointer;">
-            <td>#{{ .Rank }}</td>
-            <td>{{ .Name }}</td>
-            <td>{{ .PP }}pp</td>
-            <td>{{ .Acc }}</td>
-            <td>{{ .Plays }}</td>
-        </tr>
+        <!-- Mode Selector (Pills) -->
+        <div class="flex bg-black/30 p-1 rounded-full border border-white/10">
+            <a href="/leaderboard?mode=0"
+                class="px-5 py-2 rounded-full text-sm font-medium transition-all {{ if eq .Mode 0 }}bg-osu-pink text-white shadow-lg{{ else }}text-gray-300 hover:text-white hover:bg-white/5{{ end }}">Std</a>
+            <a href="/leaderboard?mode=1"
+                class="px-5 py-2 rounded-full text-sm font-medium transition-all {{ if eq .Mode 1 }}bg-osu-pink text-white shadow-lg{{ else }}text-gray-300 hover:text-white hover:bg-white/5{{ end }}">Taiko</a>
+            <a href="/leaderboard?mode=2"
+                class="px-5 py-2 rounded-full text-sm font-medium transition-all {{ if eq .Mode 2 }}bg-osu-pink text-white shadow-lg{{ else }}text-gray-300 hover:text-white hover:bg-white/5{{ end }}">Catch</a>
+            <a href="/leaderboard?mode=3"
+                class="px-5 py-2 rounded-full text-sm font-medium transition-all {{ if eq .Mode 3 }}bg-osu-pink text-white shadow-lg{{ else }}text-gray-300 hover:text-white hover:bg-white/5{{ end }}">Mania</a>
+        </div>
+    </div>
+
+    <div class="bg-white/5 rounded-xl border border-white/10 overflow-hidden shadow-xl">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-black/20 text-gray-400 text-xs uppercase tracking-wider">
+                        <th class="px-6 py-4 font-bold">Rank</th>
+                        <th class="px-6 py-4 font-bold">Player</th>
+                        <th class="px-6 py-4 font-bold text-right">Performance</th>
+                        <th class="px-6 py-4 font-bold text-center">Accuracy</th>
+                        <th class="px-6 py-4 font-bold text-right">Plays</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-white/5">
+                    {{ range .Users }}
+                    <tr onclick="window.location='/u/{{ .ID }}?mode={{ $.Mode }}'"
+                        class="hover:bg-white/5 transition-colors cursor-pointer group">
+                        <td
+                            class="px-6 py-4 font-bold {{ if le .Rank 3 }}text-osu-yellow{{ else }}text-gray-400{{ end }}">
+                            #{{ .Rank }}
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                <img src="/avatar/{{ .ID }}" class="w-8 h-8 rounded-full bg-osu-base object-cover"
+                                    onerror="this.src='https://a.ppy.sh/1'">
+                                <div class="font-medium text-white group-hover:text-osu-pink transition-colors">
+                                    {{ .Name }}
+                                    <span class="text-xs text-gray-500 ml-2 block sm:inline sm:ml-2 font-normal">{{
+                                        .Country }}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-right font-bold text-osu-blue">
+                            {{ .PP }} <span class="text-xs text-gray-500 font-normal">pp</span>
+                        </td>
+                        <td class="px-6 py-4 text-center text-gray-300">
+                            {{ .Acc }}
+                        </td>
+                        <td class="px-6 py-4 text-right text-gray-400 font-mono">
+                            {{ .Plays }}
+                        </td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+        {{ if not .Users }}
+        <div class="text-center py-12 text-gray-500">
+            <i class="fa-solid fa-trophy text-4xl mb-3 opacity-20"></i>
+            <p>No players found on the leaderboard yet.</p>
+        </div>
         {{ end }}
-    </tbody>
-</table>
+    </div>
+</div>
+
 {{ template "footer" . }}

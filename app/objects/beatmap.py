@@ -11,6 +11,7 @@ from enum import unique
 from pathlib import Path
 from typing import Any
 from typing import TypedDict
+import asyncio # Added for SR Calc
 
 import httpx
 from tenacity import retry
@@ -25,6 +26,16 @@ from app.logging import log
 from app.repositories import maps as maps_repo
 from app.utils import escape_enum
 from app.utils import pymysql_encode
+
+# 添加 Star-Rating-Rebirth 支持
+import sys
+import math
+sys.path.insert(0, str(Path.cwd() / "Star-Rating-Rebirth"))
+try:
+    from algorithm import calculate as srr_calculate
+    SRR_AVAILABLE = True
+except ImportError:
+    SRR_AVAILABLE = False
 
 # from dataclasses import dataclass
 
@@ -358,7 +369,8 @@ class Beatmap:
     @property
     def awards_ranked_pp(self) -> bool:
         """Return whether the map's status awards ranked pp for scores."""
-        return self.status in (RankedStatus.Ranked, RankedStatus.Approved)
+        # return self.status in (RankedStatus.Ranked, RankedStatus.Approved)
+        return True # ALWAYS AWARD PP
 
     @property  # perhaps worth caching some of?
     def as_dict(self) -> dict[str, object]:
@@ -546,6 +558,43 @@ class Beatmap:
         self.hp = float(osuapi_resp["diff_drain"])
 
         self.diff = float(osuapi_resp["difficultyrating"])
+
+        # 移除了实时计算逻辑，因为它会阻塞事件循环。
+        # SR 应由 tools/recalc_sr.py 批量更新。
+
+    async def update_diff_from_rebirth(self) -> None:
+        """Calculate and update Rebirth SR in background."""
+        if self.mode != GameMode.VANILLA_MANIA or not SRR_AVAILABLE:
+            return
+
+        osu_file_path = BEATMAPS_PATH / f"{self.id}.osu"
+        
+        if not osu_file_path.exists():
+            # Try to download from old.ppy.sh (mirror)
+            url = f"https://old.ppy.sh/osu/{self.id}"
+            try:
+                async with httpx.AsyncClient() as client:
+                    resp = await client.get(url, timeout=10.0)
+                    if resp.status_code == 200 and resp.content:
+                         osu_file_path.write_bytes(resp.content)
+                    else:
+                         return
+            except Exception:
+                 return
+
+        loop = asyncio.get_running_loop()
+        try:
+            def _calc():
+                return srr_calculate(str(osu_file_path), "NM")
+
+            new_sr = await loop.run_in_executor(None, _calc)
+            
+            if not math.isnan(new_sr) and not math.isinf(new_sr) and new_sr > 0:
+                self.diff = new_sr
+                # Update SQL
+                await maps_repo.partial_update(self.id, diff=self.diff)
+        except Exception:
+            pass
 
     @staticmethod
     async def _from_md5_cache(md5: str) -> Beatmap | None:
@@ -934,6 +983,9 @@ class BeatmapSet:
 
                 bmap.set = self
                 self.maps.append(bmap)
+
+                # Trigger background SR recalc
+                asyncio.create_task(bmap.update_diff_from_rebirth())
 
             await app.state.services.database.execute(
                 "REPLACE INTO mapsets "

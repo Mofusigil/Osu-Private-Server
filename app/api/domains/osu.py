@@ -1338,10 +1338,10 @@ async def getScores(
     if app.state.services.datadog:
         app.state.services.datadog.increment("bancho.leaderboards_served")  # type: ignore[no-untyped-call]
 
-    if bmap.status < RankedStatus.Ranked:
-        # only show leaderboards for ranked,
-        # approved, qualified, or loved maps.
-        return Response(f"{int(bmap.status)}|false".encode())
+    # if bmap.status < RankedStatus.Ranked:
+    #     # only show leaderboards for ranked,
+    #     # approved, qualified, or loved maps.
+    #     return Response(f"{int(bmap.status)}|false".encode())
 
     # fetch scores & personal best
     # TODO: create a leaderboard cache
@@ -1372,7 +1372,9 @@ async def getScores(
     response_lines: list[str] = [
         # NOTE: fa stands for featured artist (for the ones that may not know)
         # {ranked_status}|{serv_has_osz2}|{bid}|{bsid}|{len(scores)}|{fa_track_id}|{fa_license_text}
-        f"{int(bmap.status)}|false|{bmap.id}|{bmap.set_id}|{len(score_rows)}|0|",
+        # {ranked_status}|{serv_has_osz2}|{bid}|{bsid}|{len(scores)}|{fa_track_id}|{fa_license_text}
+        # f"{int(bmap.status)}|false|{bmap.id}|{bmap.set_id}|{len(score_rows)}|0|",
+        f"2|false|{bmap.id}|{bmap.set_id}|{len(score_rows)}|0|", # FORCE RANKED STATUS IN RESPONSE
         # {offset}\n{beatmap_name}\n{rating}
         # TODO: server side beatmap offsets
         f"0\n{bmap.full_name}\n{map_avg_rating}",

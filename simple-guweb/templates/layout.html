@@ -4,79 +4,144 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bancho Profile</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        osu: {
+                            base: '#24273a',
+                            dark: '#1e2132',
+                            pink: '#ff66aa',
+                            purple: '#9866ff',
+                            blue: '#00badd',
+                            yellow: '#ffcc22',
+                            green: '#88b300',
+                        },
+                        grade: {
+                            SS: '#00ffff',
+                            S: '#ffcc22',
+                            A: '#88b300',
+                            B: '#66ccff',
+                            C: '#ff66aa',
+                            D: '#ff4422',
+                            F: '#888888',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            }
+            .text-glow {
+                text-shadow: 0 0 10px currentColor;
+            }
+            .glass {
+                @apply bg-white/5 backdrop-blur-md border border-white/10;
+            }
+        }
         body {
-            background-color: #f8f9fa;
+            @apply bg-osu-dark text-white font-sans text-sm;
         }
-
-        .navbar {
-            margin-bottom: 20px;
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
         }
-
-        .score-card {
-            margin-bottom: 10px;
+        ::-webkit-scrollbar-track {
+            @apply bg-osu-dark;
         }
-
-        .grade-S,
-        .grade-SH {
-            color: gold;
-            font-weight: bold;
-        }
-
-        .grade-SS,
-        .grade-SSH {
-            color: cyan;
-            font-weight: bold;
-        }
-
-        .grade-A {
-            color: green;
-        }
-
-        .grade-B {
-            color: blue;
-        }
-
-        .grade-C {
-            color: purple;
-        }
-
-        .grade-D {
-            color: red;
-        }
-
-        .grade-F {
-            color: gray;
+        ::-webkit-scrollbar-thumb {
+            @apply bg-osu-pink rounded-full;
         }
     </style>
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="/">Simple Guweb</a>
-            <div class="collapse navbar-collapse">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item"><a class="nav-link" href="/leaderboard">Leaderboard</a></li>
-                </ul>
-                <ul class="navbar-nav ms-auto">
+<body class="flex flex-col min-h-screen">
+    <!-- Navbar -->
+    <nav class="bg-osu-base/80 backdrop-blur-md sticky top-0 z-50 border-b border-white/5 shadow-lg">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <a href="/" class="flex items-center space-x-3 group">
+                    <div
+                        class="w-8 h-8 bg-osu-pink rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-[0_0_15px_rgba(255,102,170,0.5)]">
+                        <i class="fa-solid fa-circle-notch text-white text-lg animate-spin-slow"></i>
+                    </div>
+                    <span
+                        class="font-bold text-xl tracking-wide group-hover:text-osu-pink transition-colors">Bancho</span>
+                </a>
+
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex items-center space-x-6">
+                    <a href="/leaderboard"
+                        class="text-gray-300 hover:text-white transition-colors text-sm font-medium">Leaderboard</a>
+
                     {{ if .LoggedIn }}
-                    <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
+                    <a href="/logout"
+                        class="px-4 py-2 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all duration-300 border border-red-500/20 text-sm font-medium">
+                        <i class="fa-solid fa-sign-out-alt mr-2"></i>Logout
+                    </a>
                     {{ else }}
-                    <li class="nav-item"><a class="nav-link" href="/login">Login</a></li>
+                    <a href="/login"
+                        class="px-5 py-2 rounded-full bg-osu-pink text-white hover:bg-pink-500 hover:shadow-[0_0_15px_rgba(255,102,170,0.5)] transition-all duration-300 font-semibold text-sm shadow-md">
+                        Login
+                    </a>
                     {{ end }}
-                </ul>
+                </div>
+
+                <!-- Mobile Menu Button (Hamburger) -->
+                <div class="md:hidden flex items-center">
+                    <button class="text-gray-300 hover:text-white focus:outline-none">
+                        <i class="fa-solid fa-bars text-2xl"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </nav>
-    <div class="container">
+
+    <!-- Main Content -->
+    <main class="flex-grow">
         {{ end }}
 
         {{ define "footer" }}
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-osu-base mt-20 py-8 border-t border-white/5">
+        <div class="max-w-6xl mx-auto px-4 text-center">
+            <p class="text-gray-400 text-xs">
+                Running on <span class="text-osu-pink font-semibold">Bancho.py</span>
+            </p>
+            <div class="mt-4 flex justify-center space-x-4">
+                <a href="#" class="text-gray-500 hover:text-white transition-colors"><i
+                        class="fa-brands fa-github"></i></a>
+                <a href="#" class="text-gray-500 hover:text-osu-blue transition-colors"><i
+                        class="fa-brands fa-discord"></i></a>
+            </div>
+        </div>
+    </footer>
 </body>
 
 </html>

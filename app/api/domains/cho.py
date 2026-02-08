@@ -1258,51 +1258,11 @@ class SendPrivateMessage(BasePacket):
                             "timeout": time.time() + 300,  # /np's last 5mins
                         }
 
-                        # calculate generic pp values from their /np
-
-                        osu_file_available = await ensure_osu_file_is_available(
-                            bmap.id,
-                            expected_md5=bmap.md5,
-                        )
-                        if not osu_file_available:
-                            resp_msg = (
-                                "Mapfile could not be found; "
-                                "this incident has been reported."
-                            )
-                        else:
-                            # calculate pp for common generic values
-                            pp_calc_st = time.time_ns()
-
-                            mods = None
-                            if r_match["mods"] is not None:
-                                # [1:] to remove leading whitespace
-                                mods_str = r_match["mods"][1:]
-                                mods = Mods.from_np(mods_str, mode_vn)
-
-                            scores = [
-                                ScoreParams(
-                                    mode=mode_vn,
-                                    mods=int(mods) if mods else None,
-                                    acc=acc,
-                                )
-                                for acc in app.settings.PP_CACHED_ACCURACIES
-                            ]
-
-                            results = app.usecases.performance.calculate_performances(
-                                osu_file_path=str(BEATMAPS_PATH / f"{bmap.id}.osu"),
-                                scores=scores,
-                            )
-
-                            resp_msg = " | ".join(
-                                f"{acc}%: {result['performance']['pp']:,.2f}pp"
-                                for acc, result in zip(
-                                    app.settings.PP_CACHED_ACCURACIES,
-                                    results,
-                                )
-                            )
-
-                            elapsed = time.time_ns() - pp_calc_st
-                            resp_msg += f" | Elapsed: {magnitude_fmt_time(elapsed)}"
+                        # 只显示地图信息，不计算 PP
+                        resp_msg = f"📊 {bmap.full_name}"
+                        if mods:
+                            resp_msg += f" +{mods!r}"
+                        resp_msg += f" | 使用 !with 命令查询 PP"
                     else:
                         resp_msg = "Could not find map."
 

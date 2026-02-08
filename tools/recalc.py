@@ -34,6 +34,23 @@ except ModuleNotFoundError:
     print("\x1b[;91mMust run from tools/ directory\x1b[m")
     raise
 
+# 添加 Star-Rating-Rebirth 支持
+sys.path.insert(0, str(Path.cwd() / "Star-Rating-Rebirth"))
+try:
+    from algorithm import calculate as srr_calculate
+    SRR_AVAILABLE = True
+except ImportError:
+    SRR_AVAILABLE = False
+
+
+def _get_srr_mod_string(mods: int) -> str:
+    """将 osu! mods 转换为 Star-Rating-Rebirth 需要的 mod 字符串"""
+    if mods & Mods.DOUBLETIME or mods & Mods.NIGHTCORE:
+        return "DT"
+    elif mods & Mods.HALFTIME:
+        return "HT"
+    return "NM"
+
 T = TypeVar("T")
 
 
@@ -77,6 +94,22 @@ async def recalculate_score(
     attrs = calculator.performance(beatmap)
 
     new_pp: float = attrs.pp
+    original_sr = attrs.difficulty.stars
+
+    # 对于 mania 模式，使用 Star-Rating-Rebirth 计算新 SR 并缩放 PP
+    mode_vn = GameMode(score["mode"]).as_vanilla
+    if mode_vn == 3 and SRR_AVAILABLE:
+        try:
+            mod_str = _get_srr_mod_string(score["mods"])
+            new_sr = srr_calculate(str(beatmap_path), mod_str)
+            
+            if not math.isnan(new_sr) and not math.isinf(new_sr) and new_sr > 0:
+                if original_sr > 0:
+                    sr_ratio = new_sr / original_sr
+                    new_pp = new_pp * (sr_ratio ** 2.5)
+        except Exception:
+            pass
+
     if math.isnan(new_pp) or math.isinf(new_pp):
         new_pp = 0.0
 
