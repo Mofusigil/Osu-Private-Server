@@ -21,7 +21,7 @@ except ImportError:
     SRR_AVAILABLE = False
 
 
-def _get_srr_mod_string(mods: int) -> str:
+def get_srr_mod_string(mods: int) -> str:
     """将 osu! mods 转换为 Star-Rating-Rebirth 需要的 mod 字符串"""
     if mods & Mods.DOUBLETIME or mods & Mods.NIGHTCORE:
         return "DT"
@@ -127,7 +127,7 @@ def calculate_performances(
         # 并按照 SR 比例缩放 PP
         if score.mode == 3 and SRR_AVAILABLE:
             try:
-                mod_str = _get_srr_mod_string(score.mods or 0)
+                mod_str = get_srr_mod_string(score.mods or 0)
                 new_sr = srr_calculate(osu_file_path, mod_str)
                 
                 if not math.isnan(new_sr) and not math.isinf(new_sr) and new_sr > 0:

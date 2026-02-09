@@ -316,8 +316,21 @@ class Score:
         assert num_better_scores is not None
         return num_better_scores + 1
 
-    def calculate_performance(self, beatmap_id: int) -> tuple[float, float]:
-        """Calculate PP and star rating for our score."""
+    async def calculate_performance(self, beatmap_id: int) -> tuple[float, float]:
+        """Calculate PP and star rating for our score (async).
+        
+        Uses asyncio.to_thread() to run the CPU-intensive calculation
+        in a thread pool, preventing the event loop from being blocked.
+        """
+        import asyncio
+        
+        return await asyncio.to_thread(
+            self._calculate_performance_sync,
+            beatmap_id,
+        )
+
+    def _calculate_performance_sync(self, beatmap_id: int) -> tuple[float, float]:
+        """Synchronous version of performance calculation (runs in thread pool)."""
         mode_vn = self.mode.as_vanilla
 
         score_args = ScoreParams(

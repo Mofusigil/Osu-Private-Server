@@ -40,6 +40,7 @@ import app.usecases.performance
 import app.utils
 from app.constants import regexes
 from app.constants.gamemodes import GAMEMODE_REPR_LIST
+from app.constants.gamemodes import GameMode
 from app.constants.mods import SPEED_CHANGING_MODS
 from app.constants.mods import Mods
 from app.constants.privileges import ClanPrivileges
@@ -60,6 +61,7 @@ from app.repositories import clans as clans_repo
 from app.repositories import logs as logs_repo
 from app.repositories import map_requests as map_requests_repo
 from app.repositories import maps as maps_repo
+from app.repositories import stats as stats_repo
 from app.repositories import tourney_pool_maps as tourney_pool_maps_repo
 from app.repositories import tourney_pools as tourney_pools_repo
 from app.repositories import users as users_repo
@@ -514,9 +516,11 @@ async def _with(ctx: Context) -> str | None:
         score_args.acc = acc
         msg_fields.append(f"{acc:.2f}%")
 
-    result = app.usecases.performance.calculate_performances(
-        osu_file_path=str(BEATMAPS_PATH / f"{bmap.id}.osu"),
-        scores=[score_args],  # calculate one score
+    import asyncio
+    result = await asyncio.to_thread(
+        app.usecases.performance.calculate_performances,
+        str(BEATMAPS_PATH / f"{bmap.id}.osu"),
+        [score_args],
     )
 
     return "{msg}: {pp:.2f}pp ({stars:.2f}*)".format(
@@ -558,10 +562,13 @@ async def sr(ctx: Context) -> str | None:
     if mods & Mods.NIGHTCORE:
         mods |= Mods.DOUBLETIME
 
-    # Get official SR using akatsuki_pp_py
-    result = app.usecases.performance.calculate_performances(
-        osu_file_path=str(BEATMAPS_PATH / f"{bmap.id}.osu"),
-        scores=[ScoreParams(mode=mode_vn, mods=mods)],
+    import asyncio
+
+    # Get official SR using akatsuki_pp_py (async)
+    result = await asyncio.to_thread(
+        app.usecases.performance.calculate_performances,
+        str(BEATMAPS_PATH / f"{bmap.id}.osu"),
+        [ScoreParams(mode=mode_vn, mods=mods)],
     )
     official_sr = result[0]["difficulty"]["stars"]
 
@@ -584,7 +591,12 @@ async def sr(ctx: Context) -> str | None:
             elif mods & Mods.HALFTIME:
                 srr_mod_str = "HT"
 
-            rebirth_sr = srr_calculate(str(BEATMAPS_PATH / f"{bmap.id}.osu"), srr_mod_str)
+            # Run SRR calculation in thread pool (async)
+            rebirth_sr = await asyncio.to_thread(
+                srr_calculate,
+                str(BEATMAPS_PATH / f"{bmap.id}.osu"),
+                srr_mod_str,
+            )
 
             if math.isnan(rebirth_sr) or math.isinf(rebirth_sr) or rebirth_sr <= 0:
                 return f"📊 {bmap.full_name} +{mods!r}\n⭐ SR: {official_sr:.2f} (Official) (Rebirth failed)"
@@ -621,6 +633,122 @@ async def request(ctx: Context) -> str | None:
     await map_requests_repo.create(map_id=bmap.id, player_id=ctx.player.id, active=True)
 
     return "Request submitted."
+
+
+@command(Privileges.UNRESTRICTED, aliases=["recalculate"])
+async def recalc(ctx: Context) -> str | None:
+    """Recalculate your stats (pp, acc, etc) from your best scores."""
+    # !recalc [mode] (default: current mode)
+    try:
+        if ctx.args:
+            mode_str = ctx.args[0].lower()
+            # shorthand mapping
+            aliases = {
+                "std": "vn!std", "taiko": "vn!taiko", "catch": "vn!catch", "mania": "vn!mania",
+                "osu": "vn!std", "ctb": "vn!catch",
+            }
+            if mode_str in aliases:
+                mode_str = aliases[mode_str]
+
+            if mode_str not in GAMEMODE_REPR_LIST:
+                return f"Valid gamemodes: {', '.join(GAMEMODE_REPR_LIST)}."
+            
+            # Use the exact mode specified by the user
+            mode = GameMode(GAMEMODE_REPR_LIST.index(mode_str))
+        else:
+            mode = ctx.player.status.mode
+
+        # Fetch all best scores for this mode
+        scores = await app.state.services.database.fetch_all(
+            "SELECT s.pp, s.acc, s.score, m.id as map_id, m.diff "
+            "FROM scores s "
+            "JOIN maps m ON s.map_md5 = m.md5 "
+            "WHERE s.userid = :user_id AND s.mode = :mode "
+            "AND s.status = 2", # SubmissionStatus.BEST
+            {"user_id": ctx.player.id, "mode": mode.value},
+        )
+
+        if not scores:
+            return f"No best scores found for {mode!r}."
+
+        # Recalculate stats
+        if mode not in ctx.player.stats:
+             return f"Stats not initialized for {mode!r}."
+
+        stats = ctx.player.stats[mode]
+
+        total_pp = 0.0
+        total_rscore = 0
+        weighted_acc = 0.0
+        
+        # Calculate PP and Acc
+        # Sort by PP desc for weighting
+        scores.sort(key=lambda s: s["pp"], reverse=True)
+        
+        # Check if we can update Map SR (Rebirth)
+        try:
+            from app.usecases.performance import srr_calculate, SRR_AVAILABLE
+            # BEATMAPS_PATH is already defined in global scope of commands.py
+            import os
+            import math
+            import app.repositories.maps as maps_repo # Import explicitly for this scope
+        except ImportError:
+            SRR_AVAILABLE = False
+
+        for i, s in enumerate(scores):
+            total_pp += s["pp"] * (0.95 ** i)
+            weighted_acc += s["acc"] * (0.95 ** i)
+            total_rscore += s["score"]
+
+            # Update Map SR if Mania and SRR available (Fix for Website)
+            if mode == GameMode.VANILLA_MANIA and SRR_AVAILABLE:
+                try:
+                    map_id = s["map_id"]
+                    current_diff = s["diff"]
+                    osu_file_path = str(BEATMAPS_PATH / f"{map_id}.osu")
+                    
+                    if os.path.exists(osu_file_path):
+                        # Calculate Nomod SR
+                        new_nm_sr = srr_calculate(osu_file_path, "NM")
+                        
+                        if not math.isnan(new_nm_sr) and not math.isinf(new_nm_sr) and new_nm_sr > 0:
+                            # Update DB if different (with some tolerance)
+                            if abs(current_diff - new_nm_sr) > 0.001:
+                                await maps_repo.partial_update(map_id, diff=new_nm_sr)
+                                # Update locally to avoid re-update in same loop (though unlikely)
+                                s["diff"] = new_nm_sr 
+                except Exception:
+                    pass # Ignore errors during mass recalc to ensure stats are still updated
+
+        bonus_pp = 416.6667 * (1 - 0.9994 ** len(scores))
+        total_pp = round(total_pp + bonus_pp)
+        
+        bonus_acc = 100.0 / (20 * (1 - 0.95 ** len(scores)))
+        final_acc = (weighted_acc * bonus_acc) / 100.0
+
+        # Update stats object
+        stats.pp = int(total_pp)
+        stats.rscore = total_rscore
+        stats.acc = final_acc
+        
+        # Update Global/Country Rank
+        stats.rank = await ctx.player.update_rank(mode)
+
+        # Save to DB
+        await stats_repo.partial_update(
+            ctx.player.id,
+            mode.value,
+            pp=stats.pp,
+            rscore=stats.rscore,
+            acc=stats.acc,
+        )
+
+        # Enqueue stats update to client
+        app.state.sessions.players.enqueue(app.packets.user_stats(ctx.player))
+
+        return f"Recalculated stats for {mode!r}: {stats.pp:,}pp, {stats.acc:.2f}%, #{stats.rank}"
+    except Exception as e:
+        return f"An exception occurred: {e}"
 
 
 @command(Privileges.UNRESTRICTED)

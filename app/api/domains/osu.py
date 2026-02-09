@@ -18,6 +18,8 @@ from typing import Any
 from typing import Literal
 from urllib.parse import unquote
 from urllib.parse import unquote_plus
+import math
+import os
 
 import bcrypt
 from fastapi import status
@@ -71,6 +73,7 @@ from app.repositories import users as users_repo
 from app.repositories.achievements import Achievement
 from app.usecases import achievements as achievements_usecases
 from app.usecases import user_achievements as user_achievements_usecases
+from app.usecases.performance import SRR_AVAILABLE
 from app.utils import escape_enum
 from app.utils import pymysql_encode
 
@@ -690,7 +693,7 @@ async def osuSubmitModularSelector(
             expected_md5=bmap.md5,
         )
         if osu_file_available:
-            score.pp, score.sr = score.calculate_performance(bmap.id)
+            score.pp, score.sr = await score.calculate_performance(bmap.id)
 
             if score.passed:
                 await score.calculate_status()
@@ -907,7 +910,7 @@ async def osuSubmitModularSelector(
                 "SELECT s.pp, s.acc FROM scores s "
                 "INNER JOIN maps m ON s.map_md5 = m.md5 "
                 "WHERE s.userid = :user_id AND s.mode = :mode "
-                "AND s.status = 2 AND m.status IN (2, 3) "  # ranked, approved
+                "AND s.status = 2 "  # status = 2 is SubmissionStatus.BEST
                 "ORDER BY s.pp DESC",
                 {"user_id": score.player.id, "mode": score.mode},
             )
@@ -1345,6 +1348,8 @@ async def getScores(
 
     # fetch scores & personal best
     # TODO: create a leaderboard cache
+    # fetch scores & personal best
+    # TODO: create a leaderboard cache
     if not requesting_from_editor_song_select:
         score_rows, personal_best_score_row = await get_leaderboard_scores(
             leaderboard_type,
@@ -1418,6 +1423,30 @@ async def getScores(
             for idx, s in enumerate(score_rows)
         ],
     )
+
+    # Trigger Map SR Update for Mania if possible (Fix for Website Display)
+    # This is a good place because we have the map and it's being interacted with.
+    # We calculate Nomod SR (mods=0) because that's what the website usually displays.
+    if mode == 3 and SRR_AVAILABLE: # Mania
+        try:
+            # Import explicitly to avoid circular imports if any, or just use the one from performance
+            from app.usecases.performance import srr_calculate
+            
+            # Calculate Nomod SR
+            osu_file_path = str(BEATMAPS_PATH / f"{bmap.id}.osu")
+            if os.path.exists(osu_file_path):
+                 # NM = Nomod
+                new_nm_sr = srr_calculate(osu_file_path, "NM")
+                
+                if not math.isnan(new_nm_sr) and not math.isinf(new_nm_sr) and new_nm_sr > 0:
+                    # Update DB if different (with some tolerance)
+                    if abs(bmap.diff - new_nm_sr) > 0.001:
+                         await maps_repo.partial_update(bmap.id, diff=new_nm_sr)
+                         # Update cache object too if needed, but partial_update might not update the object
+                         # bmap is in cache, so we should update it
+                         bmap.diff = new_nm_sr
+        except Exception as e:
+            log(f"Failed to update map SR for {bmap.id}: {e}", Ansi.LRED)
 
     return Response("\n".join(response_lines).encode())
 

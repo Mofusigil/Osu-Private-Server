@@ -2,6 +2,7 @@
 
 # 获取当前脚本所在目录
 PROJECT_ROOT=$(cd "$(dirname "$0")" && pwd)
+FRONTEND_PID_FILE="$PROJECT_ROOT/.frontend.pid"
 
 echo "----------------------------------------------------------------"
 echo "   Osu Private Server Auto-Launcher"
@@ -42,7 +43,7 @@ fi
 echo "等待 3 秒让服务初始化..."
 sleep 3
 
-# 2. 启动前端 Main.go
+# 2. 启动前端 Main.go (后台运行)
 echo "[2/2] 正在启动前端 (simple-guweb)..."
 cd "$PROJECT_ROOT/simple-guweb"
 
@@ -51,12 +52,36 @@ if [ ! -f "main.go" ]; then
     exit 1
 fi
 
-echo "正在运行 go run main.go ..."
-echo "----------------------------------------------------------------"
-echo "前端服务将运行在前台。"
-echo "请访问: http://localhost:8000"
-echo "按 Ctrl+C 可以停止前端。"
-echo "----------------------------------------------------------------"
+# 先检查是否已有前端在运行
+if [ -f "$FRONTEND_PID_FILE" ]; then
+    OLD_PID=$(cat "$FRONTEND_PID_FILE")
+    if kill -0 "$OLD_PID" 2>/dev/null; then
+        echo "前端已在运行 (PID: $OLD_PID)，先停止旧进程..."
+        kill "$OLD_PID" 2>/dev/null
+        sleep 1
+    fi
+fi
 
-# 运行 Go 程序
-go run main.go
+# 后台启动前端并保存 PID
+echo "正在后台运行 go run main.go ..."
+nohup go run main.go > "$PROJECT_ROOT/.frontend.log" 2>&1 &
+FRONTEND_PID=$!
+echo "$FRONTEND_PID" > "$FRONTEND_PID_FILE"
+
+# 等待一下检查是否启动成功
+sleep 2
+if kill -0 "$FRONTEND_PID" 2>/dev/null; then
+    echo "前端服务启动成功 (PID: $FRONTEND_PID)"
+else
+    echo "警告: 前端可能启动失败，请检查日志: $PROJECT_ROOT/.frontend.log"
+fi
+
+echo "----------------------------------------------------------------"
+echo "所有服务已启动！"
+echo ""
+echo "前端: http://localhost:8000"
+echo "后端: http://localhost:10000"
+echo ""
+echo "查看前端日志: tail -f $PROJECT_ROOT/.frontend.log"
+echo "停止所有服务: ./stop.sh"
+echo "----------------------------------------------------------------"

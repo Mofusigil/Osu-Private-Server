@@ -1,0 +1,39 @@
+2026/02/09 21:00:25 Connected to database successfully!
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] Loaded HTML Templates (7): 
+	- header
+	- footer
+	- leaderboard.html
+	- login.html
+	- profile.html
+	- 
+	- layout.html
+
+[GIN-debug] GET    /static/*filepath         --> github.com/gin-gonic/gin.(*RouterGroup).createStaticHandler.func1 (3 handlers)
+[GIN-debug] HEAD   /static/*filepath         --> github.com/gin-gonic/gin.(*RouterGroup).createStaticHandler.func1 (3 handlers)
+[GIN-debug] GET    /                         --> main.main.func4 (3 handlers)
+[GIN-debug] GET    /login                    --> main.main.func5 (3 handlers)
+[GIN-debug] POST   /login                    --> main.main.func6 (3 handlers)
+[GIN-debug] GET    /logout                   --> main.main.func7 (3 handlers)
+[GIN-debug] GET    /leaderboard              --> main.main.func8 (3 handlers)
+[GIN-debug] GET    /avatar/:id               --> main.main.func9 (3 handlers)
+[GIN-debug] POST   /avatar                   --> main.main.func10 (3 handlers)
+[GIN-debug] GET    /u/:id                    --> main.main.func11 (3 handlers)
+[GIN-debug] POST   /change-password          --> main.main.func12 (3 handlers)
+2026/02/09 21:00:25 Server starting on http://localhost:8000
+[GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
+Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.
+[GIN-debug] Listening and serving HTTP on :8000
+[GIN] 2026/02/09 - 21:01:03 | 200 |    5.090911ms |   192.168.206.1 | GET      "/u/4?mode=3"
+[GIN] 2026/02/09 - 21:03:31 | 200 |    6.069292ms |   192.168.206.1 | GET      "/u/4?mode=3"
+[GIN] 2026/02/09 - 21:07:26 | 302 |     704.098µs |   192.168.206.1 | GET      "/"
+[GIN] 2026/02/09 - 21:07:26 | 200 |    8.379993ms |   192.168.206.1 | GET      "/leaderboard"
+[GIN] 2026/02/09 - 21:07:28 | 404 |        1.33µs |   192.168.206.1 | GET      "/favicon.ico"
+[GIN] 2026/02/09 - 21:07:29 | 200 |    5.347311ms |   192.168.206.1 | GET      "/u/4?mode=0"
+[GIN] 2026/02/09 - 21:07:31 | 200 |    9.443111ms |   192.168.206.1 | GET      "/u/4?mode=3"
+[GIN] 2026/02/09 - 21:07:49 | 200 |    5.339747ms |   192.168.206.1 | GET      "/u/4?mode=3"
